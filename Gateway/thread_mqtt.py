@@ -42,10 +42,13 @@ def on_message(mosq, obj, msg):
     :param msg:
     :return:
     """
+    global HOST
+    global PORT
     print ("on_message:: this means  I got a message from broker for this topic")
     print(msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
-    # Send payload to C process
-    # conn.sendall(msg.payload)
+    #send payload to C process using python
+    serv_sock.sendto(msg.payload, cli_addr)
+
 
 
 def on_publish(mosq, obj, mid):
@@ -84,46 +87,61 @@ def on_log(mosq, obj, level, string):
     print(string)
 
 def listen_and_publish(mess):
- 	global HOST
- 	global PORT
- 	BUFFER = 1024
- 	print(mess)
- 	#Create socket UDP
-	serv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	serv_sock.bind((HOST, PORT))
-	while True:
-		#receive data from multichannel process
-	    data, addr = serv_sock.recvfrom(BUFFER)
-	    threadLock.acquire()
-	    client.publish("local/test", str(data))
-	    threadLock.release()
+    global HOST
+    global PORT
+    global serv_sock
+    global cli_addr
+    print(mess)
+
+    while True:
+    	#receive data from multichannel process
+        data, cli_addr = serv_sock.recvfrom(BUFFER)
+        threadLock.acquire()
+        mqttclient.publish("gw/device_1/data", str(data))
+        threadLock.release()
 
 
 HOST = "localhost"
 PORT = 10000
+BUFFER = 1024
 PORT_MQTT = 1883
 USERNAME_BROKER = "gateway"
 PASSWORD_BROKER = "raspberry"
 
 
-client = mqtt.Client()
+mqttclient = mqtt.Client()
 # Assign event callbacks
-client.on_message = on_message
-client.on_connect = on_connect
-client.on_publish = on_publish
-client.on_subscribe = on_subscribe
+mqttclient.on_message = on_message
+mqttclient.on_connect = on_connect
+mqttclient.on_publish = on_publish
+mqttclient.on_subscribe = on_subscribe
 
-# Set up password and IP for MQTT client
-client.username_pw_set(USERNAME_BROKER, PASSWORD_BROKER)
-client.connect(HOST, PORT_MQTT)
+# Set up password and IP for MQTT client and connect to local broker runnning on raspberry
+mqttclient.username_pw_set(USERNAME_BROKER, PASSWORD_BROKER)
+mqttclient.connect(HOST, PORT_MQTT)
+
+    #Create socket UDP
+serv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+serv_sock.bind((HOST, PORT))
+ 
+#HANDSHAKE: Wait initial message 
+while True:
+    print("Wait initial mess from client\n")
+    #receive data from multichannel process
+    ini_mess, cli_addr = serv_sock.recvfrom(BUFFER)
+    #Server sends ACK as soon as receiving message
+    serv_sock.sendto("ACK from server", cli_addr)
+    break
 
 #Create thread for listen to RAK831 process
 try:
     thread.start_new_thread(listen_and_publish, ("create new thread",))
 except:
     print("Error: unable to start thread")
+
+
 # Synchronizing Thread
 threadLock = threading.Lock()
-client.subscribe("local/test", 0)
+mqttclient.subscribe("gw/device_1/req", 0)
 # client.subscribe("test", 0)
-client.loop_forever()
+mqttclient.loop_forever()
