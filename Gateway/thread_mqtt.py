@@ -3,6 +3,7 @@ import thread
 import threading
 import time
 import sys
+import random
 import json
 
 try:
@@ -97,16 +98,34 @@ def listen_and_publish(mess):
     	#receive data from multichannel process
         data, cli_addr = serv_sock.recvfrom(BUFFER)
         threadLock.acquire()
-        mqttclient.publish("gw/device_1/data", str(data))
+        json_obj = conv_to_json("device_1/data", 1, random.randint(0,100), random.randint(0,100), random.randint(0,100))
+        mqttclient.publish("device_1/data", str(json_obj))
         threadLock.release()
+
+def conv_to_json(topic, device_ID, temp, bright, humidity):
+    data_input = {
+        "topic" : topic,
+        "device_ID" : device_ID,
+        "param" : {
+                "sensor_temp" : temp,
+                "sensor_bright" : bright,
+                "sensor_humidity" : humidity
+        }
+    }
+    #Convert from python dict to json object
+    json_data = json.dumps(data_input, indent = 4)
+    print(json_data)
+    return json_data
 
 
 HOST = "localhost"
 PORT = 10000
 BUFFER = 1024
 PORT_MQTT = 1883
-USERNAME_BROKER = "gateway"
-PASSWORD_BROKER = "raspberry"
+# USERNAME_BROKER = "gateway"
+# PASSWORD_BROKER = "raspberry"
+USERNAME_BROKER = "local_broker"
+PASSWORD_BROKER = "123456"
 
 
 mqttclient = mqtt.Client()
