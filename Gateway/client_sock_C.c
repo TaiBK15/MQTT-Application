@@ -17,10 +17,10 @@
 
 void *listenMQTTClient();
 
-int sockfd, len, adrr_len;
+int sockfd, len, adrr_len, num_mess = 0;
 char buffer[MAXLINE]; 
 char *PORT_INFO = "REQ"; 
-char *hello = "client send";
+char *hello = "hello client send";
 struct sockaddr_in servaddr;
 bool serv_ack = false;
 pthread_mutex_t mutex;   
@@ -71,10 +71,11 @@ int main() {
 
     while(1)
     {
-
+    num_mess++;
     sendto(sockfd, (const char *)hello, strlen(hello), 
         MSG_CONFIRM, (const struct sockaddr *) &servaddr,  
             sizeof(servaddr)); 
+    printf("mess[%d] sent !\n", num_mess);
     sleep(5);
 }
  return 0; 

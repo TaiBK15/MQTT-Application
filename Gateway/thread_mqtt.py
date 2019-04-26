@@ -161,6 +161,13 @@ except:
 
 # Synchronizing Thread
 threadLock = threading.Lock()
-mqttclient.subscribe("gw/device_1/req", 0)
+mqttclient.subscribe("device_1/req", 0)
+mqttclient.subscribe("device_2/req", 0)
+mqttclient.subscribe("device_3/req", 0)
+mqttclient.subscribe("device_4/req", 0)
+mqttclient.subscribe("device_5/req", 0)
+mqttclient.subscribe("device_6/req", 0)
+mqttclient.subscribe("device_7/req", 0)
+mqttclient.subscribe("device_8/req", 0)
 # client.subscribe("test", 0)
 mqttclient.loop_forever()
