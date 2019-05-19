@@ -101,14 +101,23 @@ def listen_and_publish():
 		data, cli_addr = serv_sock.recvfrom(BUFFER)
 		threadLock.acquire()
 		#Parse json data
-		data_dict = json.loads(data_sample)
-		save_to_database(str(data_dict['node_address']), str(data_dict['sensor_temp']), str(data_dict['sensor_humidity']), str(data_dict['sensor_lux']))
-		json_obj = conv_to_json("device_" + str(data_dict['node_address']) + "/data", data_dict['node_address'], round(data_dict['sensor_temp']), round(data_dict['sensor_humidity']), round(data_dict['sensor_lux']))
-		# json_obj = conv_to_json("device_1/data", 1, random.randint(0,100), random.randint(0,100), random.randint(0,100))
-		mqttclient.publish("device_" + str(data_dict['node_address']) + "/data", str(json_obj))
+		data_dict = json.loads(data)
+		print(data)
+		# Check type of uplink packet
+		if data_dict['type'] == "DATA":
+			save_to_database(str(data_dict['device_id']), str(data_dict['sensor_temp']), str(data_dict['sensor_humidity']), str(data_dict['sensor_bright']))
+			json_obj = convert_data_to_json("device/data", data_dict['device_id'], round(data_dict['sensor_temp']), round(data_dict['sensor_humidity']), round(data_dict['sensor_bright']))
+			mqttclient.publish("device/data", str(json_obj))
+
+		# elif data_dict['type'] == "ACK":
+		# 	json_obj = convert_ack_to_json("device/sw_ack", data_dict['device_id'])
+		elif data_dict['type'] == "GPS":
+			json_obj = convert_gps_to_json("gw/gps", data_dict['gps_lat'], data_dict['gps_long'])
+			mqttclient.publish("gw/gps", str(json_obj))
+
 		threadLock.release()
 
-def conv_to_json(topic, device_ID, temp, humidity, bright):
+def convert_data_to_json(topic, device_ID, temp, humidity, bright):
 	"""
 	Converse string data into json object
 	"""
@@ -126,6 +135,35 @@ def conv_to_json(topic, device_ID, temp, humidity, bright):
 	print(json_data)
 	return json_data
 
+def convert_ack_to_json(topic, device_ID, sw_state):
+	"""
+	Converse string data into json object
+	"""
+	data_input = {
+		"topic" : topic,
+		"device_ID" : device_ID,
+		"sw_state" : sw_state
+	}
+	#Convert from python dict to json object
+	json_data = json.dumps(data_input, indent = 4)
+	print(json_data)
+	return json_data
+
+def convert_gps_to_json(topic, gps_lat, gps_long):
+	"""
+	Converse string data into json object
+	"""
+	data_input = {
+		"topic" : topic,
+		"gps" : {
+				"gps_lat" : gps_lat,
+				"gps_long" : gps_long
+		}
+	}
+	#Convert from python dict to json object
+	json_data = json.dumps(data_input, indent = 4)
+	print(json_data)
+	return json_data
 
 def save_to_database(device_ID, temp, humidity, bright):
 	"""
@@ -191,13 +229,6 @@ except:
 
 # Synchronizing Thread
 threadLock = threading.Lock()
-mqttclient.subscribe("device_1/req", 0)
-mqttclient.subscribe("device_2/req", 0)
-mqttclient.subscribe("device_3/req", 0)
-mqttclient.subscribe("device_4/req", 0)
-mqttclient.subscribe("device_5/req", 0)
-mqttclient.subscribe("device_6/req", 0)
-mqttclient.subscribe("device_7/req", 0)
-mqttclient.subscribe("device_8/req", 0)
+mqttclient.subscribe("device/req", 0)
 # client.subscribe("test", 0)
 mqttclient.loop_forever()
