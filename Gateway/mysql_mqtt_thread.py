@@ -5,8 +5,9 @@ import time
 import sys
 import json
 import random
-
+from datetime import datetime
 from Mysql_Driver import MysqlQuery
+from firebase import firebase
 
 try:
 	import paho.mqtt.client as mqtt
@@ -100,30 +101,57 @@ def listen_and_publish():
 		#receive data from multichannel process
 		data, cli_addr = serv_sock.recvfrom(BUFFER)
 		threadLock.acquire()
-		#Parse json data
-		data_dict = json.loads(data)
 		print(data)
+		try:
+			#Parse json data
+			data_dict = json.loads(data)
+		except RuntimeError:
+			print("Receive data fail!")
+
 		# Check type of uplink packet
 		if data_dict['type'] == "DATA":
-			save_to_database(str(data_dict['device_id']), str(data_dict['sensor_temp']), str(data_dict['sensor_humidity']), str(data_dict['sensor_bright']))
-			json_obj = convert_data_to_json("device/data", data_dict['device_id'], round(data_dict['sensor_temp']), round(data_dict['sensor_humidity']), round(data_dict['sensor_bright']))
+			#Get current time
+			now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+			#Save data into local database ==> MySQL
+			save_to_database(str(data_dict['device_id']),
+							 str(data_dict['sensor_temp']),
+							 str(data_dict['sensor_humidity']),
+							 str(data_dict['sensor_bright']))
+			#Save data into cloud database ==> Firebase
+			firebase.post('End_device/deviceID_' + str(data_dict['device_id']),
+						 	{'time': now, 
+						 	'temp': int(round(data_dict['sensor_temp'])),
+						 	'humidity': int(round(data_dict['sensor_humidity'])),
+						 	'bright': int(round(data_dict['sensor_bright']))} )
+
+			json_obj = convert_data_to_json("device/data",
+											data_dict['device_id'], 
+											now,
+											int(round(data_dict['sensor_temp'])),
+											int(round(data_dict['sensor_humidity'])),
+											int(round(data_dict['sensor_bright'])))
+
 			mqttclient.publish("device/data", str(json_obj))
+
+		elif data_dict['type'] == "GPS":
+			json_obj = convert_gps_to_json("gw/gps", data_dict['gps_lat'], data_dict['gps_long'])
+			mqttclient.publish("gw/gps", str(json_obj), retain = True)
 
 		# elif data_dict['type'] == "ACK":
 		# 	json_obj = convert_ack_to_json("device/sw_ack", data_dict['device_id'])
-		elif data_dict['type'] == "GPS":
-			json_obj = convert_gps_to_json("gw/gps", data_dict['gps_lat'], data_dict['gps_long'])
-			mqttclient.publish("gw/gps", str(json_obj))
+			# mqttclient.publish("device/sw_ack", str(json_obj), retain = true)
+
 
 		threadLock.release()
 
-def convert_data_to_json(topic, device_ID, temp, humidity, bright):
+def convert_data_to_json(topic, device_ID, time, temp, humidity, bright):
 	"""
 	Converse string data into json object
 	"""
 	data_input = {
 		"topic" : topic,
 		"device_ID" : device_ID,
+		"cur_time" : time,
 		"param" : {
 				"sensor_temp" : temp,
 				"sensor_bright" : bright,
@@ -195,6 +223,8 @@ data_sample = """{
 		"sensor_lux" : 25.7,
 		"sensor_temp" : 30.3
 }"""
+
+firebase = firebase.FirebaseApplication('https://lora-system-33293.firebaseio.com', None)
 
 mqttclient = mqtt.Client()
 # Assign event callbacks
