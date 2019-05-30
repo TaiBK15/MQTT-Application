@@ -8,7 +8,6 @@ import random
 from datetime import datetime
 from Mysql_Driver import MysqlQuery
 from firebase import firebase
-from pyfcm import FCMNotification
 
 try:
 	import paho.mqtt.client as mqtt
@@ -102,44 +101,19 @@ def listen_and_publish():
 		#receive data from multichannel process
 		data, cli_addr = serv_sock.recvfrom(BUFFER)
 		threadLock.acquire()
+		#Parse json data
+		data_dict = json.loads(data)
 		print(data)
-		try:
-			#Parse json data
-			data_dict = json.loads(data)
-		except RuntimeError:
-			print("Receive data fail!")
-
 		# Check type of uplink packet
 		if data_dict['type'] == "DATA":
-			#Get current time
 			now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 			#Save data into local database ==> MySQL
-			save_to_database(str(data_dict['device_id']),
-							 str(data_dict['sensor_temp']),
-							 str(data_dict['sensor_humidity']),
-							 str(data_dict['sensor_bright']))
+			save_to_database(str(data_dict['device_id']), str(data_dict['sensor_temp']), str(data_dict['sensor_humidity']), str(data_dict['sensor_bright']))
 			#Save data into cloud database ==> Firebase
-			firebase.post('End_device/deviceID_' + str(data_dict['device_id']),
-						 	{'time': now, 
-						 	'temp': int(round(data_dict['sensor_temp'])),
-						 	'humidity': int(round(data_dict['sensor_humidity'])),
-						 	'bright': int(round(data_dict['sensor_bright']))} )
-
-			json_obj = convert_data_to_json("device/data",
-											data_dict['device_id'], 
-											now,
-											int(round(data_dict['sensor_temp'])),
-											int(round(data_dict['sensor_humidity'])),
-											int(round(data_dict['sensor_bright'])))
-
+			firebase.post('/deviceID_' + str(data_dict['device_id']), {'time': now, 'temp': data_dict['sensor_temp'], 'humidity': data_dict['sensor_humidity'], 'bright': data_dict['sensor_bright']})
+			#Get current time
+			json_obj = convert_data_to_json("device/data", data_dict['device_id'], now, round(data_dict['sensor_temp']), round(data_dict['sensor_humidity']), round(data_dict['sensor_bright']))
 			mqttclient.publish("device/data", str(json_obj))
-
-			if(int(round(data_dict['sensor_temp'])) >= 50):
-				send_push_notification_fcm("Temparature device ID_" + str(data_dict['device_id']) + " too high --> " + str(int(round(data_dict['sensor_temp']))))		
-			# if(int(round(data_dict['sensor_humidity'])) >= 50):
-			# 	send_push_notification_fcm("Humidity too high --> " + str(int(round(data_dict['sensor_temp']))))		
-			# if(int(round(data_dict['sensor_bright'])) >= 50):
-			# 	send_push_notification_fcm("Bright too high --> " + str(int(round(data_dict['sensor_temp']))))		
 
 		elif data_dict['type'] == "GPS":
 			json_obj = convert_gps_to_json("gw/gps", data_dict['gps_lat'], data_dict['gps_long'])
@@ -149,8 +123,8 @@ def listen_and_publish():
 		# 	json_obj = convert_ack_to_json("device/sw_ack", data_dict['device_id'])
 			# mqttclient.publish("device/sw_ack", str(json_obj), retain = true)
 
-		threadLock.release()
 
+		threadLock.release()
 
 def convert_data_to_json(topic, device_ID, time, temp, humidity, bright):
 	"""
@@ -210,24 +184,9 @@ def save_to_database(device_ID, temp, humidity, bright):
 	mysqlQuery.connectDatabase()
 	mysqlQuery.insertTable("device_" + device_ID, temp, humidity, bright)	
 
-def send_push_notification_fcm(message):
-	"""
-	Using Firebase Cloud Messaging (FCM) to send notification to android device
-	"""
-	push_service = FCMNotification(api_key="AAAAisuS5ss:APA91bH5m303tDXY2eQlVAYygRIqH2oRAiiVDxaVnipG-McWJjVX3xWXXIOMauUV0dUhdPnqvrbI5tmZd2zHV9ixULm71m9uWtNNQjnoEIe0bTYgVzYlg32gkds07EJv_6WOC3vnzz-k")
-	message_title = "Warning"
-	message_body = "Too hot!"
-	data_message = {
-		"title" : "LoRa System WARNING!!!",
-		"body" : message,
-		}
-	# result = push_service.notify_topic_subscribers(topic_name="LORA_SYSTEM", message_body=message_body, message_title=message_title)
-	result = push_service.notify_topic_subscribers(topic_name="LORA_SYSTEM", data_message=data_message)
-	print(result)
-
-#=============================================================
-#---------------------------MAIN-------------------------------
-#=============================================================
+#
+#-------------------MAIN----------------------
+#
 
 HOST = "localhost"
 PORT_SOCKET = 10000
@@ -264,15 +223,15 @@ mqttclient.connect(HOST, PORT_MQTT)
 serv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 serv_sock.bind((HOST, PORT_SOCKET))
 
-# #HANDSHAKE: Wait initial message 
-# while True:
-# 	print("Wait initial mess from client\n")
-# 	#receive data from multichannel process
-# 	ini_mess, cli_addr = serv_sock.recvfrom(BUFFER)
+#HANDSHAKE: Wait initial message 
+while True:
+	print("Wait initial mess from client\n")
+	#receive data from multichannel process
+	ini_mess, cli_addr = serv_sock.recvfrom(BUFFER)
 
-# 	#Server sends ACK as soon as receiving message
-# 	serv_sock.sendto("ACK from server", cli_addr)
-# 	break
+	#Server sends ACK as soon as receiving message
+	serv_sock.sendto("ACK from server", cli_addr)
+	break
 
 #Create thread for listen to RAK831 process
 try:

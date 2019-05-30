@@ -3,7 +3,6 @@ import random
 import json
 from datetime import datetime
 from firebase import firebase
-from pyfcm import FCMNotification
 
 try:
 	import paho.mqtt.client as mqtt

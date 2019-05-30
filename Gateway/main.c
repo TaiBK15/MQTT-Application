@@ -39,6 +39,8 @@ void parseDownlinkMessage(struct downlink_message_t* downlink_message, char* dow
 void serializeUplinkMessage(struct uplink_message_t* uplink_message, char* uplink_buffer);
 void detectGatewayPosition(struct gateway_position_t* gateway_position);
 void serializeGPSData(struct gateway_position_t* gateway_position, char* uplink_buffer);
+int rangdomInt(int min, int max);
+double randomDouble(double min, double max);
 
 void* listenDownlinkPacket() {
 	printf("LISTEN DOWNLINK PACKET: Thread Creation\n");
@@ -70,10 +72,10 @@ void* listenUplinkPacket() {
 	while(1) {
 		// LISTEN UPLINK MESSAGE
 		struct uplink_message_t uplnk_mess;
-		uplnk_mess.device_id = 3;
-		uplnk_mess.sensor_humidity = 60.7;
-		uplnk_mess.sensor_bright = 25.7;
-		uplnk_mess.sensor_temp = 30.3;
+		uplnk_mess.device_id = rangdomInt(1,8);
+		uplnk_mess.sensor_humidity = (double) rangdomInt(0,100);
+		uplnk_mess.sensor_bright = (double) rangdomInt(0,100);
+		uplnk_mess.sensor_temp = (double) rangdomInt(20,100);
 
 		// PROCESS PACKET INTO JSON
 		memset(uplink_buff, 0, sizeof(uplink_buff));
@@ -82,7 +84,7 @@ void* listenUplinkPacket() {
 		// SEND TO PROCESS 2
 		udpSend(uplink_buff);
 
-		sleep(20);
+		sleep(15);
 	}
 }
 
@@ -204,4 +206,14 @@ void serializeGPSData(struct gateway_position_t* gateway_position, char* uplink_
 
 	// free memory
 	json_value_free(root_value);
+}
+
+int rangdomInt(int min, int max){
+	return (rand() % (max - min + 1)) + min;
+}
+
+double randomDouble(double min, double max){
+	double range = max = min;
+	double div = RAND_MAX / range;
+	return min + (rand() / div);
 }

@@ -41,10 +41,10 @@ int udpStart() {
     /* INITIAL CONNECTION */
     /*HANDSHAKE: Client sends the first data as a initial signal to server to provide 
         address and opened port.*/
-    printf("UDP_DRIVER: Send initial signal\n");
-    sendto(sockfd, (const char *)PORT_INFO, strlen(PORT_INFO), MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 
-    printf("UDP_DRIVER: Wait ACK from server\n");
-    sleep(3);
+    // printf("UDP_DRIVER: Send initial signal\n");
+    // sendto(sockfd, (const char *)PORT_INFO, strlen(PORT_INFO), MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 
+    // printf("UDP_DRIVER: Wait ACK from server\n");
+    // sleep(3);
 
 
     // SUCCESS
