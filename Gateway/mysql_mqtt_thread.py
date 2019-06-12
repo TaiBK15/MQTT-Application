@@ -145,9 +145,9 @@ def listen_and_publish():
 			json_obj = convert_gps_to_json("gw/gps", data_dict['gps_lat'], data_dict['gps_long'])
 			mqttclient.publish("gw/gps", str(json_obj), retain = True)
 
-		# elif data_dict['type'] == "ACK":
-		# 	json_obj = convert_ack_to_json("device/sw_ack", data_dict['device_id'])
-			# mqttclient.publish("device/sw_ack", str(json_obj), retain = true)
+		elif data_dict['type'] == "ACK":
+			json_obj = convert_ack_to_json("device/sw_ack/id_" + str(data_dict['device_id']), data_dict['device_id'], data_dict['sw_state'])
+			mqttclient.publish("device/sw_ack/id_" + + str(data_dict['device_id']), str(json_obj), retain = True)
 
 		threadLock.release()
 
